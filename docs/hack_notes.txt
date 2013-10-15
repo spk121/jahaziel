@@ -1,0 +1,56 @@
+
+
+Application Menu
+
+	Concerns application as a whole, not an instance of an
+	application.
+
+LED Buttons
+
+	Whether images appear on buttons can be modified by the theme,
+	so I have to put images on the buttons explicitly, by having
+	each button contains a box, and image, and a label.
+
+Status Lights
+
+	Since it is hard to know what is going on w.r.t the Videotex
+	global switching mechanism, why not a set of status lights?
+	(See chart in ETS 300 177).
+
+	- ASCII
+	- AM display
+	- Old photo
+	- Photographic (300 177)
+	- Audio
+	- Other
+
+DFK - server Defined Function Keys
+
+	When the server defines some DFKs, I'd like a DFK keyboard to
+	appear.  But it might be much wider than the window.  Does
+	that matter.
+
+Login or connect
+
+	Don't want to clutter the main window.
+
+	- Press the launch button, which has a plug or power icon
+	- Bring up a dialog to enter broker.
+	- Dialog has text entry, history
+
+	At that point, program requests directory at regular intervals
+	and prints directory info in the main screen
+
+Call somebody
+
+	- Press the call button, which has a phone icon
+	- Bring up a dialog to choose callee from directory
+
+Bit Rates Minimums
+
+	- 300 bps is just for fun: tee-hee!
+	- 9600 bps ok for text: 1 AM page per second
+	- 64000 bps is speech-only uncompressed 8-bit audio
+        - N * 384 kpbs is for h.261, where N = 1 to 5
+
+
