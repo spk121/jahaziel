@@ -1,0 +1,195 @@
+#!/usr/bin/make -f
+
+# Copyright (C) 
+
+# LICENSE
+SHELL = /bin/sh
+
+################################################################
+# EXECUTABLES
+
+AR = ar
+BISON = bison
+CC = cc
+FLEX = flex
+INSTALL = install
+LD = ld
+LDCONFIG = ldconfig
+LEX = lex
+MAKE = make
+MAKEINFO = makeinfo
+RANLIB = ranlib
+TEXI2DVI = texi2dvi
+TEXI2HTML = `makeinfo --no-split --html`
+YACC = bison -y
+
+INSTALL = install -c
+INSTALL_PROGRAM = $(INSTALL)
+INSTALL_DATA = ${INSTALL} -m 644
+
+################################################################
+# DIRECTORIES
+
+# directory for the sources being compiled
+srcdir = .
+
+prefix = /usr/local
+exec_prefix = $(prefix)
+bindir = $(exec_prefix)/bin
+sbindir = $(exec_prefix)/sbin
+libexecdir = $(exec_prefix)/libexec
+datarootdir = $(prefix)/share
+datadir = $(datarootdir)
+sysconfdir = $(prefix)/etc
+sharedstatedir = $(prefix)/com
+localstatedir = $(prefix)/var
+runstatedir = $(localstatedir)/run
+includedir = $(prefix)/include
+oldincludedir = /usr/include
+docdir = $(datarootdir)/doc/$(package)
+infodir = $(datarootdir)/info
+htmldir = $(docdir)
+dvidir = $(docdir)
+pdfdir = $(docdir)
+psdir = $(docdir)
+libdir = $(exec_prefix)/lib
+lispdir = $(datarootdir)/emacs/site-lisp
+localedir = $(datarootdir)/locale
+mandir = $(datarootdir)/man
+
+
+
+# Prepended to installed targets for staged installs
+DESTDIR =
+
+################################################################
+# FLAGS
+
+# User-overrideable flags
+CFLAGS = -g -O0
+
+# Non-overrideable flags
+ALL_CFLAGS = $(CFLAGS)
+
+################################################################
+# SOURCES
+
+SRCS_C = main.c
+SRCS_Y = temp.y
+SRCS   = $(SRCS_C) $(SRCS_Y)
+OBJS   = $(SRCS_C:.c=.o)
+AUX    = README COPYING ChangeLog texinfo.tex $(SRCS_C) $(SRCS_H)
+
+################################################################
+# SECONDARY TARGETS
+
+# Create the directories where files are installed, and their parent
+# directories.
+installdirs: mkinstalldirs
+        $(srcdir)/mkinstalldirs $(DESTDIR)$(bindir) \
+                                $(DESTDIR)$(datadir) \
+                                $(DESTDIR)$(libdir) \
+                                $(DESTDIR)$(infodir) \
+                                $(DESTDIR)$(mandir)
+
+# This copies the info file into the right directory, and, if the
+# "install-info" program is available, it runs that.
+do-install-info: jozabad.info installdirs
+        $(NORMAL_INSTALL)
+        if test -f jozabad.info; then d=.; \
+          else d="$(srcdir)"; \
+        fi; \
+        $(INSTALL_DATA) $$d/jozabad.info "$(DESTDIR)$(infodir)/jozabad.info"
+        $(POST_INSTALL)
+        if $(SHELL) -c `install-info --version` > /dev/null 2>&1; then \
+          install-info --dir-file="$(DESTDIR)$(infodir)/dir" "$(DESTDIR)$(infodir)/foo.info"; \
+        else true; fi
+
+jozabad.info: jozabad.texi chap1.texi chap2.texi
+        $(MAKEINFO) $(srcdir)/jozabad.texi
+
+jozabad.dvi: jozabad.texi chap1.texi chap2.texi
+        $(TEXI2DVI) $(srcdir)/jozabad.texi
+
+jozabad.html: jozabad.texi chap1.texi chap2.texi
+        $(TEXI2HTML) $(srcdir)/jozabad.texi
+
+jozabad: $(OBJS)
+        $(CC) $(LDFLAGS) -o $@ $(OBJS) $(LIBS)
+
+
+        $(CC) $(LDFLAGS) -o $@ $(OBJS) $(LIBS)
+
+
+
+################################################################
+# PRIMARY TARGETS
+
+all: jozabad jozabad.info
+
+# Install files
+# Don't forget $(DESTDIR)
+# Don't forget $(NORMAL_INSTALL) $(POST_INSTALL) $(PRE_INSTALL)
+install:
+        $(PRE_INSTALL)
+        $(NORMAL_INSTALL)
+        $(INSTALL) jozabad
+        $(POST_INSTALL)
+
+install-html:
+        $(PRE_INSTALL)
+        $(NORMAL_INSTALL)
+        $(POST_INSTALL)
+
+install-pdf:
+        $(PRE_INSTALL)
+        $(NORMAL_INSTALL)
+        $(POST_INSTALL)
+
+install-strip:
+        $(MAKE) INSTALL_PROGRAM=`$(INSTALL_PROGRAM) -s` install
+
+uninstall:
+        $(PRE_UNINSTALL)
+        $(NORMALL_UNINSTALL)
+        $(POST_UNINSTALL)
+
+# delete files created by this makefile that are normally created by
+# building the program, and that aren't in revision control.  Delete
+# .dvi.
+clean:
+        rm -f *.o jozabad core
+
+# Like `clean' but also delete any other files that are created by
+# "make all".
+distclean:
+
+# Like `distclean' but also generated C souce files, tags tables, and info files.
+# Hell, delete everything but "configure".
+maintainer-clean:
+        @echo 'This command is intended for maintainers to use; it'
+        @echo 'delete files that may need special tools to rebuild'
+        rm -f jozabad.info* TAGS joza_msg.c joza_msg.h
+
+# Update a tags table for this program
+TAGS:  $(SRCS)
+        etags $(SRCS)
+
+# Generate any info files needed
+info: $(project).info
+
+
+dvi: jozabad.dvi
+
+
+# Create a distribution tar file for this program
+dist: $(SRCS) $(AUX) # Depends on all non-sources files in the distro.
+        echo tar-`sed -e '/version_string_/!d' -e 's/[^0-9.]*\([0-9.]*\).*/\1/' -e q version.c` > .fname
+        -rm -rf `cat .fname`
+        mkdir `cat .fname`
+        ln $(SRCS) $(AUX) `cat .fname`
+        tar chzf `cat .fname`.tar.gz `cat.fname`
+        -rm -rf `cat .fname` .fname
+
+# Perform self-tests
+check:
