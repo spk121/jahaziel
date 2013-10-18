@@ -1,3 +1,12 @@
+TODO
+* hook up a main loop with an on_idle
+* connect a process manager to the main loop
+* create JOHA connection manager task for the process manager
+    - check if a host name and user name has changed
+    - they should display status in the status bar
+    - they should light up or turn off an LED when connected
+    - connection status needs to be singleton / atomic
+    - 
 
 
 Application Menu

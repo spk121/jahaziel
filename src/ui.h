@@ -12,9 +12,12 @@
 
 typedef struct
 {
-    /* Widgets */
     GtkWidget *main_window;
+
+    // Connect dialog
     GtkWidget *connect_dialog;
+    GtkEntry *connect_server_combobox_entry;
+    GtkEntry *connect_username_combobox_entry;
 } JahUI;
 
 void ui_init(void);
