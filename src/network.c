@@ -207,7 +207,7 @@ proc_connect_new (gchar *server, gchar *username)
     GHook *hook = pm_proc_new();
     proc_connect_data_t *connect_data = g_new0 (proc_connect_data_t, 1);
     connect_data->server = g_strdup(server);
-    connect_data->username = g_strdup(server);
+    connect_data->username = g_strdup(username);
     hook->data = connect_data;
     hook->func = proc_connect_func;
     g_free (server);
