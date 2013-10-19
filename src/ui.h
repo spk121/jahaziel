@@ -13,17 +13,21 @@
 typedef struct
 {
     GtkWidget *main_window;
+    GtkStatusbar *statusbar;
 
     // Connect dialog
     GtkWidget *connect_dialog;
     GtkEntry *connect_server_combobox_entry;
     GtkEntry *connect_username_combobox_entry;
+    
 } JahUI;
 
 void ui_init(void);
 void ui_fini(void);
 
 G_MODULE_EXPORT void ui_cb_connect_button_clicked(GtkButton *button, gpointer user_data);
+
+extern JahUI      *ui;
 
 
 #endif /* JAHAZIEL_UI_H */

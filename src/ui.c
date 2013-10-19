@@ -26,6 +26,7 @@ void ui_init(void)
     JAH_GET_WIDGET(builder, connect_dialog, ui);
     JAH_GET_OBJECT(builder, connect_server_combobox_entry, GTK_ENTRY, ui);
     JAH_GET_OBJECT(builder, connect_username_combobox_entry, GTK_ENTRY, ui);
+    JAH_GET_OBJECT(builder, statusbar, GTK_STATUSBAR, ui);
 
     gtk_builder_connect_signals(builder, NULL);
     g_object_unref(G_OBJECT(builder));
