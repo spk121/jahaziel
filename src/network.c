@@ -28,6 +28,9 @@
 #include "joza_msg.h"
 #include "xzmq.h"
 #include "proc.h"
+#include "statusbar.h"
+#include "ui.h"
+#include "xgtk.h"
 
 enum {UNBOUND, DISCONNECTED, CONNECTING, CONNECTED, DISCONNECTING} net_state = UNBOUND;
 
@@ -83,6 +86,7 @@ static gboolean broker_connect_func (gpointer data)
         net_state = DISCONNECTING;
         joza_msg_send_disconnect(sock);
         zsocket_destroy(ctx, sock);
+        sock = NULL;
         net_state = DISCONNECTED;
 
         g_atomic_int_set(state, 2);
@@ -96,19 +100,25 @@ static gboolean broker_connect_func (gpointer data)
         gchar *addr = g_strdup_printf("tcp://%s:%d", wdata->server, JAH_PORT);
         int ret;
 
+        pm_queue_proc(proc_status_message_new("connect", addr));
         ret = zsocket_connect(sock, addr); 
-        g_free(addr);
 
         if (ret == -1)
         {
             // Connection failure
             // pop up warning dialog
             // give up
+            
             g_atomic_int_set(state, 3);
+            gchar *str = g_strdup_printf("Error connecting to '%s': %s",
+                                         addr, zmq_strerror (errno));
+            xgtk_message_dialog(GTK_WINDOW(ui->main_window), str);
+            g_free (str);
         }
         else
         {
             // FIXME: handle directionality correctly
+            pm_queue_proc(proc_status_message_new("connect", wdata->username));
             joza_msg_send_connect(sock, wdata->username, 0);
             bool pret = zsocket_poll (sock, JAH_TIMEOUT_CONNECT);
             if (pret == TRUE)
@@ -117,7 +127,8 @@ static gboolean broker_connect_func (gpointer data)
                 if (joza_msg_id(msg) == JOZA_MSG_CONNECT_INDICATION)
                 {
                     // success
-                    ;
+
+                    // Enable
                     g_atomic_int_set(state, 4);
                 }
                 else 
@@ -134,6 +145,10 @@ static gboolean broker_connect_func (gpointer data)
                         // unexpected message
                         // disconnect
                         ;
+                    gchar *str = g_strdup_printf("Connection rejected by '%s'", addr);
+                    xgtk_message_dialog(GTK_WINDOW(ui->main_window), str);
+                    g_free (str);
+
                     g_atomic_int_set(state, 3);
                 } 
             }
@@ -142,9 +157,15 @@ static gboolean broker_connect_func (gpointer data)
                 // timeout
                 // pop up warning
                 // disconnect
+                gchar *str = g_strdup_printf("No response from '%s'", addr);
+                xgtk_message_dialog(GTK_WINDOW(ui->main_window), str);
+                g_free (str);
+
                 g_atomic_int_set(state, 3);
             }
         }
+        g_free(addr);
+
         return TRUE;
     }
     else if (g_atomic_int_get(state) == 3)
@@ -163,6 +184,7 @@ static gboolean broker_connect_func (gpointer data)
         // Connected
         g_atomic_int_set(state, -1);
         net_state = CONNECTED;
+        pm_queue_proc(proc_status_message_new("connect", "Connected"));
 
         // FIXME: add this socket as a source of main loop data
 
