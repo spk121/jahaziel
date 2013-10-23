@@ -31,6 +31,8 @@
 #include "statusbar.h"
 #include "ui.h"
 #include "xgtk.h"
+#include "network.h"
+#include "calllistview.h"
 
 enum {UNBOUND, DISCONNECTED, CONNECTING, CONNECTED, DISCONNECTING} net_state = UNBOUND;
 
@@ -186,7 +188,7 @@ static gboolean broker_connect_func (gpointer data)
         net_state = CONNECTED;
         pm_queue_proc(proc_status_message_new("connect", "Connected"));
 
-        // FIXME: add this socket as a source of main loop data
+        pm_queue_proc(proc_zmq_handler_new());
 
     clean:
         g_free(wdata->server);
@@ -238,194 +240,140 @@ proc_connect_new (gchar *server, gchar *username)
 }
 
 
-#if 0
-static void initialize(int verbose, const char *preface, zctx_t **ctx, void **sock, char *broker,
-                       char *calling_address, iodir_t dir)
+/****************************************************************/
+
+struct proc_directory_data_tag
 {
-    int ret;
+    gchar *server;
+    gchar *username;
+    gint state;
+};
 
-    g_return_if_fail (net_state == UNBOUND);
-    
-    status_bar_print("Initializing socket.");
+typedef struct proc_directory_data_tag proc_directory_data_t;
 
-    *ctx = xzctx_new ();
-    *sock = xzsocket_new(*ctx, ZMQ_DEALER);
-    if (sock == NULL)
-        status_bar_print("Socket initialization failed");
-}
-
-static void broker_input_cb (GObject *source, GAsyncResult *result, gpointer data)
+static gboolean proc_directory_func (gpointer data)
 {
-    broker_connect_t *s = (broker_connect_t *) data;
+    proc_directory_data_t *wdata = (proc_directory_data_t *) data;
 
-    GInputStream *in = G_INPUT_STREAM (source);
-    GError *error = NULL;
-    gssize nread;
-    
-    nread = g_input_stream_read_finish (in, result, &error);
-    if (nread > 0)
-    {
-        g_assert_no_error (error);
-        g_string_append_len(s->buf, async_read_buffer, nread);
-        g_atomic_int_set(&(s->state), 5);
-    }
-}
+    g_assert (data != NULL);
 
-
-static gboolean broker_connect_func (gpointer data)
-{
-    broker_connect_t *s = (broker_connect_t *) data;
-    gint *state = &(s->state);
-    int immed = TRUE;
-
-    g_return_val_if_fail (net_state != UNBOUND, FALSE);
-
-    if (g_atomic_int_get(state) == 0)
+    if (sock == NULL || net_state != CONNECTED)
     {
-        // State 0: A new connection request
-
-        // Wait if we're in the middle of something
-        if (net_state == DISCONNECTING || net_state == CONNECTING)
-            return TRUE;
-        else if (net_state == CONNECTED)
-            g_atomic_int_set(state, 1);
-        else if (net_state == DISCONNECTED)
-            g_atomic_int_set(state, 3);
-
-        g_return_val_if_reached(FALSE);
-    }
-    else if (g_atomic_int_get(state) == 1) 
-    {
-        // State 1: Connect request received whilst already connected
-        g_atomic_int_set(state, 2);
-
-        // If we're connected to the correct broker with the right
-        // username and directionality, then do nothing. (Maybe?)
-
-        // Otherwise, tear down this connection.
-        // - send a disconnect request to the broker
-        // - disconnect the underlying socket
-        // - jump to next step
-        return (TRUE);
-    }
-    else if (g_atomic_int_get(state) == 2)
-    {
-        // State 2: another thread is disconnecting 
-        return (TRUE);
-    }
-    else if (g_atomic_int_get(state) == 3)
-    {
-        // State 3: Connect a socket to a broker
-        g_atomic_int_set(state, 4);
-
-        zsocket_connect(*sock, broker);
-        return (TRUE);
-    }
-    else if (g_atomic_int_get(state) == 4)
-    {
-        // State 4: send a connect request with a given username and directionaltiy
-    }
-    else if (g_atomic_int_get(state) == 5)
-    {
-        // State 5: poll for a connect response or clear request
-        bool ret = zsocket_poll (broker_sock, TIMEOUT_CONNECT);
-        if (ret == TRUE) {
-            joza_msg_t *msg = joza_msg_recv (void *input);
-            if (joza_msg_id(msg) == JOZA_MSG_CONNECT_INDICATION)
-                // success
-                ;
-            else if (joza_msg_id(msg) == JOZA_MSG_DISCONNECT_INDICATION) {
-                // failure
-                ;
-            } 
-            else {
-                // failure
-            }
-
-            return (TRUE);
-    }
-    else if (g_atomic_int_get(state) == 5)
-    {
-        // State 5: received a connect indication
-        g_atomic_int_set(state, 6);
-        return (TRUE);
-    }
-    else if (g_atomic_int_get(state) == 6)
-    {
-        // State 6: waiting for a connect indication to be processed
-    }
-    else if (g_atomic_int_get(state) == 7)
-    {
-        // State 7: received a clear request
-    }
-    else if (g_atomic_int_get(state) == 8)
-    {
-        // State 8: waiting for a clear request to be processed
-    }
-    else if (g_atomic_int_get(state) == 9)
-    {
-        // State 9: we are complete
-        return (FALSE);
+        if (sock == NULL)
+            pm_queue_proc(proc_status_message_new("directory", "No socket available"));
+        else if (net_state != CONNECTED)
+            pm_queue_proc(proc_status_message_new("directory", "Not connected"));
     }
     else
-        g_return_val_if_reached (FALSE);
-}
-    
-
-void conct(void)
-{
-    int ret;
-    
-    // Part 1
-
-    // Status bar "connection to broker"
-
-    ret = xzsocket_connect(*sock, broker);
-    if (ret == -1)
     {
-        // Can't connect to broker
-        // Popup dialog: can't connect to broker
-        ;
+        joza_msg_send_directory_request(sock);
     }
 
-    // Part 2
-
-    // Status bar "registering as 'identity' at 'broker'
-    ret = joza_msg_send_connect(*sock, identity, dir);
-    if (ret != 0)
-
-    if (verbose)
-        printf("%s: connecting to broker as %s, (%s)\n",
-               preface,
-               calling_address,
-               iodir_name(dir));
-    ret = joza_msg_send_connect(*sock, calling_address, dir);
-    if (ret != 0) {
-        if (verbose)
-            printf("%s: joza_msg_send_connect (%p, %s, %s) returned %d\n", preface,
-                   *sock,
-                   calling_address,
-                   iodir_name(dir),
-                   ret);
-        exit(1);
-    }
-
-    // Broker must respond within timeout
-    //timeout1 = true;
-    // signal (SIGALRM, catch_alarm);
-    //alarm(10);
-
-    if (verbose)
-        printf("%s: waiting for connect indication\n", preface);
-    joza_msg_t *response = joza_msg_recv(*sock);
-    //timeout1 = false;
-    if (joza_msg_id(response) != JOZA_MSG_CONNECT_INDICATION) {
-        if (verbose) {
-            printf("%s: did not receive connect indication\n", preface);
-            joza_msg_dump(response);
-        }
-        exit (1);
-    }   
+    g_free(wdata);
+    return FALSE;
 }
 
-#endif
+GHook *
+proc_directory_new ()
+{
+    GHook *hook = pm_proc_new();
+    proc_directory_data_t *dir_data = g_new0 (proc_directory_data_t, 1);
+    hook->data = dir_data;
+    hook->func = proc_directory_func;
+    return hook;
+}
+
+/****************************************************************/
+
+struct proc_zmq_handler_data_tag
+{
+    gint state;
+};
+
+typedef struct proc_zmq_handler_data_tag proc_zmq_handler_data_t;
+
+static gboolean proc_zmq_handler_func (gpointer data)
+{
+    proc_zmq_handler_data_t *wdata = (proc_zmq_handler_data_t *) data;
+    gint *state = &(wdata ->state);
+
+    if (g_atomic_int_get(state) == -1)
+    {
+        return TRUE;
+    }
+    else
+    {
+        g_atomic_int_set(state, -1);
+
+        if (sock == NULL || net_state != CONNECTED)
+        {
+            g_free (wdata);
+            if (sock == NULL)
+                pm_queue_proc(proc_status_message_new("zmq_handler", "No socket available"));
+            else if (net_state != CONNECTED)
+                pm_queue_proc(proc_status_message_new("zmq_handler", "Not connected"));
+            
+            return FALSE;
+        }
+
+        zmq_pollitem_t items [] = { { sock, 0, ZMQ_POLLIN, 0 } };
+        int rc = zmq_poll (items, 1, 1);
+        if (rc == -1)
+        {
+            g_free(wdata);
+            pm_queue_proc(proc_status_message_new("zmq_handler", "Disconnecting"));
+            return FALSE;
+        }
+        else if (rc == 0)
+        {
+            g_atomic_int_set(state, 0);
+            return TRUE;
+        }
+
+        joza_msg_t *msg = joza_msg_recv (sock);
+        pm_queue_proc(proc_status_message_new("zmq_handler", joza_msg_const_command(msg)));
+        //msg_apply(msg);
+        if (joza_msg_id (msg) == JOZA_MSG_DIRECTORY) 
+        {
+            zhash_t *workers = joza_msg_workers (msg);
+            zlist_t *wlist = zhash_keys(workers);
+            gchar *first = zlist_first(wlist);
+            gchar *cur = first;
+
+            extern Store* store;
+            GtkTreeIter iter;
+            GtkTreePath *path ;
+
+            gtk_list_store_clear(store->workers);
+
+            do {
+                if (cur)
+                {
+                    gint i;
+                    // Add one worker name to the Call dialog box's user view
+                    gtk_list_store_append(store->workers, &iter);
+                    gtk_list_store_set(store->workers, &iter, 0, cur, 1, TRUE, -1);
+                }
+                cur = zlist_next(wlist);
+            } while (cur && cur != first);
+        }
+        joza_msg_destroy(&msg);
+        g_atomic_int_set(state, 0);
+        return TRUE;
+    }
+}
+
+GHook *
+proc_zmq_handler_new ()
+{
+    GHook *hook = pm_proc_new();
+    proc_zmq_handler_data_t *wdata = g_new0 (proc_zmq_handler_data_t, 1);
+    gint *state = &(wdata ->state);
+    g_atomic_int_set(state, 0);
+
+    hook->data = wdata;
+    hook->func = proc_zmq_handler_func;
+    return hook;
+}
+
+

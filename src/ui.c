@@ -3,10 +3,13 @@
 #include <string.h>
 #include "proc.h"
 #include "ui.h"
+#include "network.h"
+#include "calllistview.h"
 
 #define UI_FILE "jahaziel.glade"
 
-JahUI      *ui;
+JahUI *ui;
+Store *store;
 
 void ui_init(void)
 {
@@ -27,11 +30,17 @@ void ui_init(void)
     JAH_GET_OBJECT(builder, connect_server_combobox_entry, GTK_ENTRY, ui);
     JAH_GET_OBJECT(builder, connect_username_combobox_entry, GTK_ENTRY, ui);
     JAH_GET_OBJECT(builder, statusbar, GTK_STATUSBAR, ui);
+    JAH_GET_OBJECT(builder, worker_list_store, GTK_LIST_STORE, ui);
+    JAH_GET_OBJECT(builder, call_client_list_view, GTK_TREE_VIEW, ui);
 
     gtk_builder_connect_signals(builder, NULL);
     g_object_unref(G_OBJECT(builder));
 
     gtk_widget_show(ui->main_window);
+    
+    store = create_store();
+    create_view(store, ui->call_client_list_view);
+    gtk_widget_show(GTK_WIDGET(ui->call_client_list_view));
 }
 
 void ui_fini()
@@ -40,19 +49,19 @@ void ui_fini()
 }
 
 G_MODULE_EXPORT
-void ui_cb_connect_button_clicked(GtkButton *button, gpointer user_data)
+void ui_cb_connect_button_clicked(GtkButton *button, gpointer connect_dialog_box)
 {
     // Clicking this button brings up a dialog that allows one to
     // choose a broker.
     g_warning("connect button is clicked");
-    gtk_widget_show(ui->connect_dialog);
+    gtk_widget_show(GTK_WIDGET(connect_dialog_box));
 }
 
 G_MODULE_EXPORT
-void ui_cb_connect_connect_button_clicked(GtkButton *button, gpointer user_data)
+void ui_cb_connect_connect_button_clicked(GtkButton *button, gpointer connect_dialog_box)
 {
     g_debug("Connect dialog's connect button is clicked");
-    gtk_widget_hide(ui->connect_dialog);
+    gtk_widget_hide(GTK_WIDGET(connect_dialog_box));
 
     // Scrape the user-entered 
     gchar *server = gtk_editable_get_chars(GTK_EDITABLE(ui->connect_server_combobox_entry), 0, -1);
@@ -107,4 +116,38 @@ void ui_cb_connect_server_combobox_entry_changed (GtkEditable *editable, gpointe
 void ui_cb_connect_username_combobox_entry_changed (GtkEditable *editable, gpointer user_data)
 {
     server_or_username_combobox_entry_changed(editable, user_data);    
+}
+
+G_MODULE_EXPORT
+void ui_cb_call_button_clicked(GtkButton *button, gpointer call_dialog_box)
+{
+    // Clicking this button brings up a dialog that allows one to
+    // choose a broker.
+    g_warning("call button is clicked");
+
+    pm_queue_proc(proc_directory_new());
+    gtk_widget_show(GTK_WIDGET(call_dialog_box));
+}
+
+G_MODULE_EXPORT
+void ui_cb_call_cancel_button_clicked(GtkButton *button, gpointer call_dialog_box)
+{
+    g_warning("Connect dialog's cancel button is clicked");
+    gtk_widget_hide(GTK_WIDGET(call_dialog_box));
+}
+
+G_MODULE_EXPORT
+void ui_cb_call_call_button_clicked(GtkButton *button, gpointer call_dialog_box)
+{
+    gtk_widget_hide(GTK_WIDGET(call_dialog_box));
+
+    // Scrape the user-entered 
+    //gchar *server = gtk_editable_get_chars(GTK_EDITABLE(ui->connect_server_combobox_entry), 0, -1);
+    //gchar *username = gtk_editable_get_chars(GTK_EDITABLE(ui->connect_username_combobox_entry), 0, -1);
+
+    // FIXME: need to scrub user-entered data here 
+    //pm_queue_proc(proc_connect_new(g_strdup(server), g_strdup(username)));
+
+    //g_free(server);
+    //g_free(username);
 }

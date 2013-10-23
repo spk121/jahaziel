@@ -20,6 +20,8 @@ typedef struct
     GtkEntry *connect_server_combobox_entry;
     GtkEntry *connect_username_combobox_entry;
     
+    GtkListStore *worker_list_store;
+    GtkTreeView *call_client_list_view;
 } JahUI;
 
 void ui_init(void);
