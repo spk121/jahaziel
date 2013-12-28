@@ -10,7 +10,7 @@ SHELL = /bin/sh
 
 AR = ar
 BISON = bison
-CC = clang
+CC = gcc
 FLEX = flex
 INSTALL = install
 LD = ld
@@ -70,13 +70,14 @@ CPPFLAGS = $(shell pkg-config --cflags-only-I \
 	libczmq)
 
 # User-overrideable flags
-CFLAGS = -g -O0
+CFLAGS = -g -O0 -fstack-protector-all -Wall
 CFLAGS += $(shell pkg-config --cflags-only-other \
 	gtk+-3.0 \
 	glib-2.0 \
 	gmodule-export-2.0 \
 	libczmq)
 LIBS   = -Wl,--export-dynamic \
+	-fstack-protector-all \
 	$(shell pkg-config --libs \
 	gtk+-3.0 \
 	glib-2.0 \
@@ -89,7 +90,7 @@ ALL_CFLAGS = $(CFLAGS) -std=c11
 ################################################################
 # SOURCES
 
-sources = $(wildcard *.c)
+sources = $(wildcard *.c) 
 headers = $(wildcard *.h)
 objects = $(sources:.c=.o)
 depends = $(sources:.c=.d)
@@ -220,5 +221,11 @@ jahaziel.html: jahaziel.texi
 
 jahaziel: $(objects)
 	$(CC) $(LDFLAGS) -o $@ $(objects) $(LIBS)
+
+main_window.i: main_window.c
+	$(CC) $(CPPFLAGS) $(ALL_CFLAGS) -E -P -C -o $@ $<
+
+resources.c: jahaziel.gresource.xml
+	glib-compile-resources $< --target=$@ --generate-source
 
 -include $(depends)

@@ -15,11 +15,12 @@
             <property name="can_focus">False</property>
             <property name="layout_style">end</property>
             <child>
-              <object class="GtkButton" id="cancel_button ">
+              <object class="GtkButton" id="call_cancel_button">
                 <property name="label" translatable="yes">Cancel</property>
                 <property name="visible">True</property>
                 <property name="can_focus">True</property>
                 <property name="receives_default">True</property>
+                <signal name="clicked" handler="ui_cb_call_cancel_button_clicked" object="call_dialog" swapped="no"/>
               </object>
               <packing>
                 <property name="expand">False</property>
@@ -28,11 +29,12 @@
               </packing>
             </child>
             <child>
-              <object class="GtkButton" id="call_butto">
+              <object class="GtkButton" id="call_call_button">
                 <property name="label" translatable="yes">Call</property>
                 <property name="visible">True</property>
                 <property name="can_focus">True</property>
                 <property name="receives_default">True</property>
+                <signal name="clicked" handler="ui_cb_call_call_button_clicked" object="call_dialog" swapped="no"/>
               </object>
               <packing>
                 <property name="expand">False</property>
@@ -49,12 +51,10 @@
           </packing>
         </child>
         <child>
-          <object class="GtkTreeView" id="client_list">
-            <property name="width_request">320</property>
-            <property name="height_request">240</property>
+          <object class="GtkTreeView" id="call_client_list_view">
             <property name="visible">True</property>
             <property name="can_focus">True</property>
-            <property name="model">liststore1</property>
+            <property name="model">worker_list_store</property>
             <child internal-child="selection">
               <object class="GtkTreeSelection" id="treeview-selection1"/>
             </child>
@@ -68,8 +68,8 @@
       </object>
     </child>
     <action-widgets>
-      <action-widget response="0">cancel_button </action-widget>
-      <action-widget response="0">call_butto</action-widget>
+      <action-widget response="0">call_cancel_button</action-widget>
+      <action-widget response="0">call_call_button</action-widget>
     </action-widgets>
   </object>
   <object class="GtkDialog" id="connect_dialog">
@@ -108,7 +108,7 @@
                 <property name="sensitive">False</property>
                 <property name="can_focus">True</property>
                 <property name="receives_default">True</property>
-                <signal name="clicked" handler="ui_cb_connect_connect_button_clicked" swapped="no"/>
+                <signal name="clicked" handler="ui_cb_connect_connect_button_clicked" object="connect_dialog" swapped="no"/>
               </object>
               <packing>
                 <property name="expand">False</property>
@@ -424,33 +424,10 @@
       <action-widget response="0">on_button</action-widget>
     </action-widgets>
   </object>
-  <object class="GtkListStore" id="liststore1">
-    <columns>
-      <!-- column-name Worker -->
-      <column type="gchararray"/>
-      <!-- column-name BPS -->
-      <column type="guint"/>
-      <!-- column-name Format -->
-      <column type="gchararray"/>
-      <!-- column-name Status -->
-      <column type="gchararray"/>
-      <!-- column-name I/O -->
-      <column type="gchararray"/>
-    </columns>
-    <data>
-      <row>
-        <col id="0" translatable="yes">nobody</col>
-        <col id="1">0</col>
-        <col id="2" translatable="yes">QCIF</col>
-        <col id="3" translatable="yes">Busy</col>
-        <col id="4" translatable="yes">Barred</col>
-      </row>
-    </data>
-  </object>
   <object class="GtkWindow" id="main_window">
     <property name="can_focus">False</property>
     <child>
-      <object class="GtkBox" id="outer_vbox">
+      <object class="GtkBox" id="main_window_outer_vbox">
         <property name="visible">True</property>
         <property name="can_focus">False</property>
         <property name="margin_left">10</property>
@@ -458,6 +435,9 @@
         <property name="margin_top">10</property>
         <property name="margin_bottom">10</property>
         <property name="orientation">vertical</property>
+        <child>
+          <placeholder/>
+        </child>
         <child>
           <object class="GtkBox" id="tool_grid">
             <property name="visible">True</property>
@@ -509,10 +489,9 @@
               <object class="GtkButton" id="call_button">
                 <property name="label" translatable="yes">Call</property>
                 <property name="visible">True</property>
-                <property name="sensitive">False</property>
                 <property name="can_focus">True</property>
                 <property name="receives_default">True</property>
-                <signal name="clicked" handler="ui_cb_call_button_clicked" swapped="no"/>
+                <signal name="clicked" handler="ui_cb_call_button_clicked" object="call_dialog" swapped="no"/>
               </object>
               <packing>
                 <property name="expand">False</property>
@@ -525,7 +504,7 @@
                 <property name="visible">True</property>
                 <property name="can_focus">True</property>
                 <property name="receives_default">True</property>
-                <signal name="clicked" handler="ui_cb_connect_button_clicked" swapped="no"/>
+                <signal name="clicked" handler="ui_cb_connect_button_clicked" object="connect_dialog" swapped="no"/>
                 <child>
                   <object class="GtkImage" id="connect_button_image">
                     <property name="visible">True</property>
@@ -544,7 +523,7 @@
           <packing>
             <property name="expand">False</property>
             <property name="fill">True</property>
-            <property name="position">0</property>
+            <property name="position">1</property>
           </packing>
         </child>
         <child>
@@ -777,7 +756,7 @@
           <packing>
             <property name="expand">False</property>
             <property name="fill">True</property>
-            <property name="position">1</property>
+            <property name="position">2</property>
           </packing>
         </child>
         <child>
@@ -937,5 +916,147 @@
         </child>
       </object>
     </child>
+  </object>
+  <object class="GtkWindow" id="window1">
+    <property name="can_focus">False</property>
+    <child>
+      <object class="GtkGrid" id="grid1">
+        <property name="visible">True</property>
+        <property name="can_focus">False</property>
+        <property name="margin_left">3</property>
+        <property name="margin_right">3</property>
+        <child>
+          <object class="GtkFrame" id="frame1">
+            <property name="visible">True</property>
+            <property name="can_focus">False</property>
+            <property name="margin_left">6</property>
+            <property name="margin_right">6</property>
+            <property name="margin_top">6</property>
+            <property name="margin_bottom">6</property>
+            <property name="label_xalign">0.0099999997764825821</property>
+            <child>
+              <object class="GtkAlignment" id="alignment2">
+                <property name="visible">True</property>
+                <property name="can_focus">False</property>
+                <property name="left_padding">12</property>
+                <child>
+                  <object class="GtkDrawingArea" id="drawingarea1">
+                    <property name="width_request">320</property>
+                    <property name="height_request">240</property>
+                    <property name="visible">True</property>
+                    <property name="can_focus">False</property>
+                  </object>
+                </child>
+              </object>
+            </child>
+            <child type="label">
+              <object class="GtkLabel" id="label5">
+                <property name="visible">True</property>
+                <property name="can_focus">False</property>
+                <property name="label" translatable="yes">&lt;b&gt;frame1&lt;/b&gt;</property>
+                <property name="use_markup">True</property>
+              </object>
+            </child>
+          </object>
+          <packing>
+            <property name="left_attach">0</property>
+            <property name="top_attach">1</property>
+            <property name="width">2</property>
+            <property name="height">1</property>
+          </packing>
+        </child>
+        <child>
+          <object class="GtkStatusbar" id="statusbar2">
+            <property name="visible">True</property>
+            <property name="can_focus">False</property>
+            <property name="orientation">vertical</property>
+            <property name="spacing">2</property>
+          </object>
+          <packing>
+            <property name="left_attach">0</property>
+            <property name="top_attach">2</property>
+            <property name="width">1</property>
+            <property name="height">1</property>
+          </packing>
+        </child>
+        <child>
+          <object class="GtkToolbar" id="toolbar1">
+            <property name="visible">True</property>
+            <property name="can_focus">False</property>
+            <child>
+              <object class="GtkToolButton" id="toolbutton1">
+                <property name="visible">True</property>
+                <property name="can_focus">False</property>
+                <property name="label" translatable="yes">Connect</property>
+                <property name="use_underline">True</property>
+                <property name="stock_id">gtk-connect</property>
+              </object>
+              <packing>
+                <property name="expand">False</property>
+                <property name="homogeneous">True</property>
+              </packing>
+            </child>
+            <child>
+              <object class="GtkToolButton" id="toolbutton2">
+                <property name="visible">True</property>
+                <property name="can_focus">False</property>
+                <property name="label" translatable="yes">Call</property>
+                <property name="use_underline">True</property>
+                <property name="stock_id">gtk-add</property>
+              </object>
+              <packing>
+                <property name="expand">False</property>
+                <property name="homogeneous">True</property>
+              </packing>
+            </child>
+          </object>
+          <packing>
+            <property name="left_attach">0</property>
+            <property name="top_attach">0</property>
+            <property name="width">2</property>
+            <property name="height">1</property>
+          </packing>
+        </child>
+        <child>
+          <object class="GtkLabel" id="label7">
+            <property name="visible">True</property>
+            <property name="can_focus">False</property>
+            <property name="halign">end</property>
+            <property name="valign">center</property>
+            <property name="xpad">3</property>
+            <property name="label" translatable="yes">.</property>
+          </object>
+          <packing>
+            <property name="left_attach">1</property>
+            <property name="top_attach">2</property>
+            <property name="width">1</property>
+            <property name="height">1</property>
+          </packing>
+        </child>
+      </object>
+    </child>
+  </object>
+  <object class="GtkListStore" id="worker_list_store">
+    <columns>
+      <!-- column-name Worker -->
+      <column type="gchararray"/>
+      <!-- column-name BPS -->
+      <column type="guint"/>
+      <!-- column-name Format -->
+      <column type="gchararray"/>
+      <!-- column-name Status -->
+      <column type="gchararray"/>
+      <!-- column-name I/O -->
+      <column type="gchararray"/>
+    </columns>
+    <data>
+      <row>
+        <col id="0" translatable="yes">nobody</col>
+        <col id="1">0</col>
+        <col id="2" translatable="yes">QCIF</col>
+        <col id="3" translatable="yes">Busy</col>
+        <col id="4" translatable="yes">Barred</col>
+      </row>
+    </data>
   </object>
 </interface>
