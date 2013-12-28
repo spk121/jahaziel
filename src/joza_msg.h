@@ -70,6 +70,7 @@ extern "C" {
         protocol      string
         version       number 1
         calling_address  string
+        host_name     string
         directionality  number 1
     CONNECT_INDICATION - Broker tells node that it has been connected.
     DISCONNECT - Node tells broker that it is disconnecting.
@@ -80,6 +81,8 @@ extern "C" {
     DIRECTORY_REQUEST - This is the Switched Virtual Call protocol version 1
     DIRECTORY - This is the Switched Virtual Call protocol version 1
         workers       dictionary
+    ENQ - This is the Switched Virtual Call protocol version 1
+    ACK - This is the Switched Virtual Call protocol version 1
 */
 
 #define JOZA_MSG_VERSION                    1
@@ -101,6 +104,8 @@ extern "C" {
 #define JOZA_MSG_DIAGNOSTIC                 13
 #define JOZA_MSG_DIRECTORY_REQUEST          14
 #define JOZA_MSG_DIRECTORY                  15
+#define JOZA_MSG_ENQ                        16
+#define JOZA_MSG_ACK                        17
 
 //  Structure of our class
 
@@ -122,6 +127,7 @@ struct _joza_msg_t {
     byte diagnostic;
     char *protocol;
     byte version;
+    char *host_name;
     byte directionality;
     zhash_t *workers;
     size_t workers_bytes;       //  Size of dictionary content
@@ -258,11 +264,13 @@ joza_msg_send_addr_reset_confirmation (void *output, const zframe_t *addr);
 int
 joza_msg_send_connect (void *output,
                        char *calling_address,
+                       char *host_name,
                        byte directionality);
 
 int
 joza_msg_send_addr_connect (void *output, const zframe_t *addr,
                             char *calling_address,
+                            char *host_name,
                             byte directionality);
 
 //  Send the CONNECT_INDICATION to the output in one step
@@ -312,6 +320,20 @@ joza_msg_send_directory (void *output,
 int
 joza_msg_send_addr_directory (void *output, const zframe_t *addr,
                               zhash_t *workers);
+
+//  Send the ENQ to the output in one step
+int
+joza_msg_send_enq (void *output);
+
+int
+joza_msg_send_addr_enq (void *output, const zframe_t *addr);
+
+//  Send the ACK to the output in one step
+int
+joza_msg_send_ack (void *output);
+
+int
+joza_msg_send_addr_ack (void *output, const zframe_t *addr);
 
 //  Duplicate the joza_msg message
 joza_msg_t *
@@ -426,6 +448,14 @@ byte
 joza_msg_const_diagnostic (const joza_msg_t *self);
 void
 joza_msg_set_diagnostic (joza_msg_t *self, byte diagnostic);
+
+//  Get/set the host_name field
+char *
+joza_msg_host_name (joza_msg_t *self);
+const char *
+joza_msg_const_host_name (const joza_msg_t *self);
+void
+joza_msg_set_host_name (joza_msg_t *self, const char *format, ...);
 
 //  Get/set the directionality field
 byte

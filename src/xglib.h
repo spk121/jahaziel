@@ -37,4 +37,6 @@ GTimer *            xg_timer_new                        (void);
 void                xg_usleep                           (gulong microseconds);
 gunichar2 *         xg_utf8_to_utf16                    (const gchar *str,
                                                          glong len);
+
+void                xg_free_char_pointer                (gchar **pp);
 #endif

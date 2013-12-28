@@ -28,6 +28,12 @@ xg_file_get_contents (const gchar *filename, gchar **contents, gsize *length)
     }
 }
 
+void
+xg_free_char_pointer (gchar **pp)
+{
+    g_clear_pointer (pp, g_free);
+}
+
 GHook *
 xg_hook_alloc (GHookList *hl)
 {

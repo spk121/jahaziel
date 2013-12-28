@@ -38,9 +38,13 @@ enum {UNBOUND, DISCONNECTED, CONNECTING, CONNECTED, DISCONNECTING} net_state = U
 
 #define JAH_PORT 5555
 #define JAH_TIMEOUT_CONNECT 1000
+#define JOZA_PACKET_SIZE 7      /* 7 -> 128 bytes */
+#define JOZA_WINDOW_SIZE 2
+#define JOZA_THROUGHPUT_SIZE 13 /* 13 -> 64 kbps */
 
 zctx_t *ctx = NULL;
 void *sock = NULL;
+char *username = NULL;
 
 struct proc_connect_data_tag
 {
@@ -55,7 +59,6 @@ static gboolean broker_connect_func (gpointer data)
 {
     proc_connect_data_t *wdata = (proc_connect_data_t *) data;
     gint *state = &(wdata ->state);
-    int immed = TRUE;
 
     g_return_val_if_fail (net_state != UNBOUND, FALSE);
 
@@ -121,7 +124,7 @@ static gboolean broker_connect_func (gpointer data)
         {
             // FIXME: handle directionality correctly
             pm_queue_proc(proc_status_message_new("connect", wdata->username));
-            joza_msg_send_connect(sock, wdata->username, 0);
+            joza_msg_send_connect(sock, wdata->username, "HOSTNAME", 0);
             bool pret = zsocket_poll (sock, JAH_TIMEOUT_CONNECT);
             if (pret == TRUE)
             {
@@ -188,6 +191,7 @@ static gboolean broker_connect_func (gpointer data)
         net_state = CONNECTED;
         pm_queue_proc(proc_status_message_new("connect", "Connected"));
 
+        username = g_strdup(wdata->username);
         pm_queue_proc(proc_zmq_handler_new());
 
     clean:
@@ -206,8 +210,6 @@ static gboolean broker_connect_func (gpointer data)
 
 static gboolean proc_connect_func (gpointer data)
 {
-    proc_connect_data_t *wdata = (proc_connect_data_t *) data;
-
     g_assert (data != NULL);
 
     if (net_state == UNBOUND)
@@ -285,6 +287,57 @@ proc_directory_new ()
 
 /****************************************************************/
 
+struct proc_call_request_data_tag
+{
+    gchar *server;
+    gchar *username;
+    gint state;
+};
+
+typedef struct proc_call_request_data_tag proc_call_request_data_t;
+
+static gboolean proc_call_request_func (gpointer data)
+{
+    proc_call_request_data_t *wdata = (proc_call_request_data_t *) data;
+
+    g_assert (data != NULL);
+
+    if (sock == NULL || net_state != CONNECTED)
+    {
+        if (sock == NULL)
+            pm_queue_proc(proc_status_message_new("call_request", "No socket available"));
+        else if (net_state != CONNECTED)
+            pm_queue_proc(proc_status_message_new("call_request", "Not connected"));
+    }
+    else
+    {
+        g_assert(username != NULL);
+        joza_msg_send_call_request(sock,
+                                   username,
+                                   wdata->username,
+                                   JOZA_PACKET_SIZE,
+                                   JOZA_WINDOW_SIZE,
+                                   JOZA_THROUGHPUT_SIZE,
+                                   zframe_new(NULL, 0));
+    }
+
+    g_free(wdata);
+    return FALSE;
+}
+
+GHook *
+proc_call_request_new (const char *name)
+{
+    GHook *hook = pm_proc_new();
+    proc_call_request_data_t *data = g_new0 (proc_call_request_data_t, 1);
+    data->username = name;
+    hook->data = data;
+    hook->func = proc_call_request_func;
+    return hook;
+}
+
+/****************************************************************/
+
 struct proc_zmq_handler_data_tag
 {
     gint state;
@@ -342,20 +395,37 @@ static gboolean proc_zmq_handler_func (gpointer data)
 
             extern Store* store;
             GtkTreeIter iter;
-            GtkTreePath *path ;
 
             gtk_list_store_clear(store->workers);
 
             do {
                 if (cur)
                 {
-                    gint i;
                     // Add one worker name to the Call dialog box's user view
                     gtk_list_store_append(store->workers, &iter);
                     gtk_list_store_set(store->workers, &iter, 0, cur, 1, TRUE, -1);
                 }
                 cur = zlist_next(wlist);
             } while (cur && cur != first);
+        }
+        else if (joza_msg_id (msg) == JOZA_MSG_DIAGNOSTIC)
+        {
+            pm_queue_proc(proc_status_message_new("zmq_handler", 
+                                                  g_strdup_printf("%s %d %d",
+                                                                  joza_msg_const_command(msg),
+                                                                  joza_msg_cause(msg),
+                                                                  joza_msg_diagnostic(msg))));;
+        }
+        else if (joza_msg_id (msg) == JOZA_MSG_CALL_REQUEST)
+        {
+            // Possibly set up chat server process here.
+        }
+        else if (joza_msg_id (msg) == JOZA_MSG_CALL_ACCEPTED)
+        {
+            pm_queue_proc(proc_status_message_new("zmq_handler", "Connection Initiated"));
+            // Reset the packetizer
+            // Reset the screen
+
         }
         joza_msg_destroy(&msg);
         g_atomic_int_set(state, 0);

@@ -1,6 +1,14 @@
 #include <gtk/gtk.h>
 #include "xgtk.h"
 
+void xgtk_builder_object_unref(GtkBuilder **b)
+{
+    g_assert(b != 0);
+    g_assert(GTK_IS_BUILDER(*b));
+    g_object_unref(G_OBJECT(*b));
+    *b = NULL;
+}
+
 void xgtk_message_dialog(GtkWindow *main_window, const gchar *str)
 {
     GtkMessageDialog *dialog =

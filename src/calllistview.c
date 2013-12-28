@@ -1,5 +1,7 @@
 #include <gtk/gtk.h>
 #include "calllistview.h"
+#include "proc.h"
+#include "network.h"
 
 enum {
     COLUMN_ADDRESS = 0,
@@ -28,23 +30,12 @@ Store *
 create_store (void)
 {
     Store *store;
-    GtkTreeIter iter;
  
     store = g_new0 (Store, 1);
     store->show_busy = TRUE;
     store->workers = gtk_list_store_new (N_COLUMNS,
                                           G_TYPE_STRING,
                                           G_TYPE_BOOLEAN);
-    /* Add some items */
-    gtk_list_store_append (store->workers, &iter);
-    gtk_list_store_set (store->workers, &iter, COLUMN_ADDRESS, "Spam", COLUMN_BUSY, TRUE, -1);
- 
-    gtk_list_store_append (store->workers, &iter);
-    gtk_list_store_set (store->workers, &iter, COLUMN_ADDRESS, "Beer", COLUMN_BUSY, FALSE, -1);
- 
-    gtk_list_store_append (store->workers, &iter);
-    gtk_list_store_set (store->workers, &iter, COLUMN_ADDRESS, "Chewing Gum", COLUMN_BUSY, TRUE, -1);
- 
     store->filtered = GTK_TREE_MODEL_FILTER (gtk_tree_model_filter_new (GTK_TREE_MODEL (store->workers), NULL));
     store->sorted = GTK_TREE_MODEL_SORT (gtk_tree_model_sort_new_with_model (GTK_TREE_MODEL (store->filtered)));
  
@@ -81,10 +72,10 @@ on_row_activated (GtkTreeView *view,
                             COLUMN_ADDRESS, &address,
                             COLUMN_BUSY, &busy,
                             -1);
- 
-        g_free (address);
+        // FIXME: need to scrub user-entered data here 
+        pm_queue_proc(proc_call_request_new(g_strdup(address)));
 
-        // FIXME: add some call logic here.
+        g_free (address);
     }
 }
 

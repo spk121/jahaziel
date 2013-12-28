@@ -207,6 +207,7 @@ joza_msg_destroy (joza_msg_t **self_p)
         free (self->calling_address);
         free (self->called_address);
         free (self->protocol);
+        free (self->host_name);
         zhash_destroy (&self->workers);
 
         //  Free object itself
@@ -338,6 +339,8 @@ joza_msg_recv (void *input)
             goto malformed;
         free (self->calling_address);
         GET_STRING (self->calling_address);
+        free (self->host_name);
+        GET_STRING (self->host_name);
         GET_NUMBER1 (self->directionality);
         break;
 
@@ -371,6 +374,12 @@ joza_msg_recv (void *input)
             zhash_insert (self->workers, string, value);
             free (string);
         }
+        break;
+
+    case JOZA_MSG_ENQ:
+        break;
+
+    case JOZA_MSG_ACK:
         break;
 
     default:
@@ -508,6 +517,10 @@ joza_msg_send (joza_msg_t **self_p, void *output)
         frame_size++;       //  Size is one octet
         if (self->calling_address)
             frame_size += strlen (self->calling_address);
+        //  host_name is a string with 1-byte length
+        frame_size++;       //  Size is one octet
+        if (self->host_name)
+            frame_size += strlen (self->host_name);
         //  directionality is a 1-byte integer
         frame_size += 1;
         break;
@@ -540,6 +553,12 @@ joza_msg_send (joza_msg_t **self_p, void *output)
             zhash_foreach (self->workers, s_workers_count, self);
         }
         frame_size += self->workers_bytes;
+        break;
+
+    case JOZA_MSG_ENQ:
+        break;
+
+    case JOZA_MSG_ACK:
         break;
 
     default:
@@ -624,6 +643,10 @@ joza_msg_send (joza_msg_t **self_p, void *output)
             PUT_STRING (self->calling_address);
         } else
             PUT_NUMBER1 (0);    //  Empty string
+        if (self->host_name) {
+            PUT_STRING (self->host_name);
+        } else
+            PUT_NUMBER1 (0);    //  Empty string
         PUT_NUMBER1 (self->directionality);
         break;
 
@@ -650,6 +673,12 @@ joza_msg_send (joza_msg_t **self_p, void *output)
             zhash_foreach (self->workers, s_workers_write, self);
         } else
             PUT_NUMBER1 (0);    //  Empty dictionary
+        break;
+
+    case JOZA_MSG_ENQ:
+        break;
+
+    case JOZA_MSG_ACK:
         break;
 
     }
@@ -1001,10 +1030,12 @@ int
 joza_msg_send_connect (
     void *output,
     char *calling_address,
+    char *host_name,
     byte directionality)
 {
     joza_msg_t *self = joza_msg_new (JOZA_MSG_CONNECT);
     joza_msg_set_calling_address (self, calling_address);
+    joza_msg_set_host_name (self, host_name);
     joza_msg_set_directionality (self, directionality);
     return joza_msg_send (&self, output);
 }
@@ -1014,11 +1045,13 @@ int
 joza_msg_send_addr_connect (
     void *output, const zframe_t *addr,
     char *calling_address,
+    char *host_name,
     byte directionality)
 {
     joza_msg_t *self = joza_msg_new (JOZA_MSG_CONNECT);
     self->address = zframe_dup(addr);
     joza_msg_set_calling_address (self, calling_address);
+    joza_msg_set_host_name (self, host_name);
     joza_msg_set_directionality (self, directionality);
     return joza_msg_send (&self, output);
 }
@@ -1169,6 +1202,50 @@ joza_msg_send_addr_directory (
 
 
 //  --------------------------------------------------------------------------
+//  Send the ENQ to the socket in one step
+
+int
+joza_msg_send_enq (
+    void *output)
+{
+    joza_msg_t *self = joza_msg_new (JOZA_MSG_ENQ);
+    return joza_msg_send (&self, output);
+}
+
+
+int
+joza_msg_send_addr_enq (
+    void *output, const zframe_t *addr)
+{
+    joza_msg_t *self = joza_msg_new (JOZA_MSG_ENQ);
+    self->address = zframe_dup(addr);
+    return joza_msg_send (&self, output);
+}
+
+
+//  --------------------------------------------------------------------------
+//  Send the ACK to the socket in one step
+
+int
+joza_msg_send_ack (
+    void *output)
+{
+    joza_msg_t *self = joza_msg_new (JOZA_MSG_ACK);
+    return joza_msg_send (&self, output);
+}
+
+
+int
+joza_msg_send_addr_ack (
+    void *output, const zframe_t *addr)
+{
+    joza_msg_t *self = joza_msg_new (JOZA_MSG_ACK);
+    self->address = zframe_dup(addr);
+    return joza_msg_send (&self, output);
+}
+
+
+//  --------------------------------------------------------------------------
 //  Duplicate the joza_msg message
 
 joza_msg_t *
@@ -1234,6 +1311,7 @@ joza_msg_dup (joza_msg_t *self)
         copy->protocol = strdup (self->protocol);
         copy->version = self->version;
         copy->calling_address = strdup (self->calling_address);
+        copy->host_name = strdup (self->host_name);
         copy->directionality = self->directionality;
         break;
 
@@ -1256,6 +1334,12 @@ joza_msg_dup (joza_msg_t *self)
 
     case JOZA_MSG_DIRECTORY:
         copy->workers = zhash_dup (self->workers);
+        break;
+
+    case JOZA_MSG_ENQ:
+        break;
+
+    case JOZA_MSG_ACK:
         break;
 
     }
@@ -1401,6 +1485,10 @@ joza_msg_dump (joza_msg_t *self)
             printf ("    calling_address='%s'\n", self->calling_address);
         else
             printf ("    calling_address=\n");
+        if (self->host_name)
+            printf ("    host_name='%s'\n", self->host_name);
+        else
+            printf ("    host_name=\n");
         printf ("    directionality=%ld\n", (long) self->directionality);
         break;
 
@@ -1432,6 +1520,14 @@ joza_msg_dump (joza_msg_t *self)
         if (self->workers)
             zhash_foreach (self->workers, s_workers_dump, self);
         printf ("    }\n");
+        break;
+
+    case JOZA_MSG_ENQ:
+        puts ("ENQ:");
+        break;
+
+    case JOZA_MSG_ACK:
+        puts ("ACK:");
         break;
 
     }
@@ -1542,6 +1638,12 @@ joza_msg_const_command (const joza_msg_t *self)
         break;
     case JOZA_MSG_DIRECTORY:
         return ("DIRECTORY");
+        break;
+    case JOZA_MSG_ENQ:
+        return ("ENQ");
+        break;
+    case JOZA_MSG_ACK:
+        return ("ACK");
         break;
     }
     return "?";
@@ -1839,6 +1941,38 @@ joza_msg_set_diagnostic (joza_msg_t *self, byte diagnostic)
 
 
 //  --------------------------------------------------------------------------
+//  Get/set the host_name field
+
+char *
+joza_msg_host_name (joza_msg_t *self)
+{
+    assert (self);
+    return self->host_name;
+}
+
+const char *
+joza_msg_const_host_name (const joza_msg_t *self)
+{
+    assert (self);
+    return self->host_name;
+}
+
+void
+joza_msg_set_host_name (joza_msg_t *self, const char *format, ...)
+{
+    //  Format into newly allocated string
+    assert (self);
+    va_list argptr;
+    va_start (argptr, format);
+    free (self->host_name);
+    self->host_name = (char *) malloc (STRING_MAX + 1);
+    assert (self->host_name);
+    vsnprintf (self->host_name, STRING_MAX, format, argptr);
+    va_end (argptr);
+}
+
+
+//  --------------------------------------------------------------------------
 //  Get/set the directionality field
 
 byte
@@ -2079,12 +2213,14 @@ joza_msg_test (bool verbose)
 
     self = joza_msg_new (JOZA_MSG_CONNECT);
     joza_msg_set_calling_address (self, "Life is short but Now lasts for ever");
+    joza_msg_set_host_name (self, "Life is short but Now lasts for ever");
     joza_msg_set_directionality (self, 123);
     joza_msg_send (&self, output);
 
     self = joza_msg_recv (input);
     assert (self);
     assert (streq (joza_msg_calling_address (self), "Life is short but Now lasts for ever"));
+    assert (streq (joza_msg_host_name (self), "Life is short but Now lasts for ever"));
     assert (joza_msg_directionality (self) == 123);
     joza_msg_destroy (&self);
 
@@ -2137,6 +2273,20 @@ joza_msg_test (bool verbose)
     assert (joza_msg_workers_size (self) == 2);
     assert (streq (joza_msg_workers_string (self, "Name", "?"), "Brutus"));
     assert (joza_msg_workers_number (self, "Age", 0) == 43);
+    joza_msg_destroy (&self);
+
+    self = joza_msg_new (JOZA_MSG_ENQ);
+    joza_msg_send (&self, output);
+
+    self = joza_msg_recv (input);
+    assert (self);
+    joza_msg_destroy (&self);
+
+    self = joza_msg_new (JOZA_MSG_ACK);
+    joza_msg_send (&self, output);
+
+    self = joza_msg_recv (input);
+    assert (self);
     joza_msg_destroy (&self);
 
     zctx_destroy (&ctx);
